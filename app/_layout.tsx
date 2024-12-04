@@ -1,24 +1,34 @@
-import { ThemeButton } from '@/components/ThemedButton';
-import { ThemedText } from '@/components/ThemedText';
+import { useEffect } from 'react';
+import { Stack } from 'expo-router';
+import { store } from '@/store/store';
+import { Provider } from 'react-redux'
+import { useFonts } from "expo-font";
 import * as SplashScreen from 'expo-splash-screen';
-import { View } from 'react-native';
-import AntDesign from '@expo/vector-icons/AntDesign';
 
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+	const [loaded] = useFonts({
+		SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+	});
+
+	useEffect(() => {
+		if (loaded) {
+			SplashScreen.hideAsync();
+		}
+	}, [loaded]);
+
+	if (!loaded) {
+		return null;
+	}
+
 	return (
-		<View style={{ flex: 1, justifyContent: 'center' }}>
-			<ThemedText type='title' align='center'>Welcome to Ur page</ThemedText>
-			<ThemeButton
-				txtColor='#fff'
-				txt='Login To Continue'
-				style={{ elevation: 1 }}
-				icon={<AntDesign name='google' size={20} color='#fff' />}
-				mx={10}
-				my={10}
-			/>
-		</View>
+		<Provider store={store}>
+			<Stack screenOptions={{ headerShown: false }} initialRouteName="index">
+				<Stack.Screen name="index" />
+				<Stack.Screen name="themeChanger" />
+			</Stack>
+		</Provider>
 	);
 }
