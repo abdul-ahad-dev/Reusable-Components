@@ -1,41 +1,42 @@
-import { View, Text, FlatList, StyleSheet, Image, ScrollView } from "react-native"
-
+import React, { useCallback, useEffect, useState } from "react";
+import { View, Text, FlatList, StyleSheet, Image, RefreshControl } from "react-native"
 import { useDispatch } from "react-redux";
-
 import { RootState } from "@/store/store";
-import { useSelector } from "react-redux";
-import { useEffect, useState } from "react";
-import { fetchProducts } from "@/store/features/productSlice";
-import { ThemedText } from "@/components/ThemedText";
-import { Category, Product } from "@/constants/Interface";
-import { ThemeButton } from "@/components/ThemedButton";
-import { router } from "expo-router";
 import axios from "axios";
+import { ThemedText } from "@/components/ThemedText";
+import { ThemeButton } from "@/components/ThemedButton";
+import { ThemedView } from "@/components/ThemedView";
+import { router } from "expo-router";
+import { Category, Product } from "@/constants/Interface";
+
+import { useSelector } from "react-redux";
+import { fetchProducts } from "@/store/features/productSlice";
 
 
-function flatlist() {
+function FlatListScreen() {
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [limit, setLimit] = useState<number>(20);
-    const [skip, setSkip] = useState<number>(0);
     const [total, setTotal] = useState<number>(0);
-    const [chosenCategory, setChosenCategory] = useState<string>("");
+    const [chosenCategory, setChosenCategory] = useState<string>("all");
     const [loading, setLoading] = useState<Boolean>(false)
+    const [refreshing, setRefreshing] = useState<Boolean>(false);
+    
+    useEffect(() => {
+        getCategories()
+    }, []);
 
     useEffect(() => {
         getProducts()
-    }, [chosenCategory, limit, skip])
+    }, [chosenCategory, limit])
 
-    useEffect(() => {
-        getCategories()
-    }, [])
-    console.log("products=>", products)
-    console.log("setCategories=>", categories)
-    console.log("total=>", total)
-    console.log("chosenCategory=>", chosenCategory)
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        setProducts();
+    }, []);
 
     async function getCategories() {
-        let categories: any = await axios("https://dummyjson.com/products/categories")
+        let categories: any = await axios("https://dummyjson.com/products/categories");
         setCategories(categories.data);
     }
 
@@ -43,10 +44,10 @@ function flatlist() {
         let url = chosenCategory && chosenCategory != "all"
             ? `https://dummyjson.com/products/category/${chosenCategory}`
             : "https://dummyjson.com/products"
-        let products: any = await axios(`${url}?limit=${limit}&skip${skip}`)
+        let products: any = await axios(`${url}?limit=${limit}`)
         setProducts(products.data.products);
-        console.log('first', products.data.total)
         setTotal(products.data.total)
+        setRefreshing(false);
     }
 
     // const { products, status } = useSelector((state: RootState) => state.products);
@@ -59,7 +60,7 @@ function flatlist() {
     // }, [dispatch]);
 
     return (
-        <View style={[styles.container, { backgroundColor: theme === "light" ? "#fff" : "#000" }]}>
+        <ThemedView style={[styles.container, { backgroundColor: theme === "light" ? "#fff" : "#000" }]}>
             <ThemedText
                 type='title'
                 align='center'
@@ -69,7 +70,7 @@ function flatlist() {
                 Learning Flatlist
             </ThemedText>
 
-            <View style={{ margin: 10, }}>
+            <View style={{ marginVertical: 10, }}>
                 <FlatList
                     data={[{ slug: "all", name: "All" }, ...categories]}
                     keyExtractor={(data) => data.slug}
@@ -94,42 +95,27 @@ function flatlist() {
 
             <FlatList
                 data={products}
+                numColumns={2}
+                columnWrapperStyle={{ gap: 5 }}
+                onEndReachedThreshold={0.8}
+                onEndReached={() => {
+                    if (limit < total) {
+                        setLimit(limit + 20)
+                    }
+                }}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                showsVerticalScrollIndicator={false}
                 keyExtractor={(item) => item.id.toLocaleString()}
                 renderItem={({ item, index }: { item: Product; index: number }) => (
-                    <View key={index} style={[styles.item, { backgroundColor: theme === "light" ? "#ddd" : "#1a1a1a" }]}>
+                    <View key={index} style={[styles.item, { backgroundColor: theme === "light" ? "#ddd" : "#1a1a1a", flex: 1, flexDirection: 'column' }]}>
                         <Image source={{ uri: item.thumbnail }} style={styles.image} />
                         <View style={{ flex: 1 }}>
-                            <ThemedText type="defaultSemiBold">{item.title}</ThemedText>
+                            <ThemedText numberOfLines={2} type="defaultSemiBold">{item.title}</ThemedText>
                             <ThemedText
-                                style={{
-                                    height: 42,
-                                    overflow: 'hidden',
-                                    wordWrap: 'break-word',
-                                    textOverflow: 'ellipsis',
-                                }}
+                                numberOfLines={2}
                                 type="small">{item.description}</ThemedText>
-
-                            <View style={styles.tags}>
-                                <ThemedText type="small">Tags: </ThemedText>
-                                <FlatList
-                                    data={item.tags}
-                                    keyExtractor={(tag, tagIndex) => `${item.id}-${tagIndex}`}
-                                    showsVerticalScrollIndicator={false}
-                                    renderItem={({ item: tag }) => (
-                                        <Text style={[styles.cardTags,
-                                        {
-                                            backgroundColor: theme === "light" ? "#aaa" : "#ddd",
-                                            color: theme === "light" ? "#fff" : "#000"
-                                        }]}>{tag}{" "}</Text>
-                                    )}
-                                />
-                            </View>
-
-                            <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between' }}>
-                                <ThemedText type="small">Price: <Text style={{ fontWeight: 600 }}>{item.price}</Text></ThemedText>
-                                <ThemedText type="small">Rating: <Text style={{ fontWeight: 600 }}>{item.rating}</Text></ThemedText>
-                            </View>
-
+                            <ThemedText type="small">Price: <Text style={{ fontWeight: 600 }}>{item.price}</Text></ThemedText>
+                            <ThemedText type="small">Rating: <Text style={{ fontWeight: 600 }}>{item.rating}</Text></ThemedText>
                         </View>
                     </View>
                 )
@@ -144,7 +130,7 @@ function flatlist() {
                 txt="Go Back"
                 style={{ elevation: 1 }}
             />
-        </View >
+        </ThemedView >
     )
 }
 
@@ -180,7 +166,6 @@ const styles = StyleSheet.create({
         height: 100,
         width: 100,
         resizeMode: 'contain',
-        borderRadius: 10,
         marginRight: 10,
         elevation: 1,
         shadowColor: "#000",
@@ -206,4 +191,4 @@ const styles = StyleSheet.create({
     }
 })
 
-export default flatlist
+export default FlatListScreen
