@@ -27,7 +27,7 @@ export interface Product {
     thumbnail: string;
 }
 
-export interface Review {
+interface Review {
     rating: number;
     comment: string;
     date: string;
@@ -35,9 +35,16 @@ export interface Review {
     reviewerEmail: string;
 }
 
-export interface Meta {
-    createdAt: string;
-    updatedAt: string;
+interface Meta {
+    createdAt: string; 
+    updatedAt: string; 
     barcode: string;
     qrCode: string;
+}
+
+
+export interface Category {
+    slug: string;
+    name: string;
+    url: string;
 }

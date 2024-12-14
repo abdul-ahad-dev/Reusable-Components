@@ -4,22 +4,59 @@ import { useDispatch } from "react-redux";
 
 import { RootState } from "@/store/store";
 import { useSelector } from "react-redux";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { fetchProducts } from "@/store/features/productSlice";
 import { ThemedText } from "@/components/ThemedText";
-import { Product } from "@/constants/Interface";
+import { Category, Product } from "@/constants/Interface";
 import { ThemeButton } from "@/components/ThemedButton";
 import { router } from "expo-router";
+import axios from "axios";
+
 
 function flatlist() {
-    const { products, status } = useSelector((state: RootState) => state.products);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [limit, setLimit] = useState<number>(20);
+    const [skip, setSkip] = useState<number>(0);
+    const [total, setTotal] = useState<number>(0);
+    const [chosenCategory, setChosenCategory] = useState<string>("");
+    const [loading, setLoading] = useState<Boolean>(false)
+
+    useEffect(() => {
+        getProducts()
+    }, [chosenCategory, limit, skip])
+
+    useEffect(() => {
+        getCategories()
+    }, [])
+    console.log("products=>", products)
+    console.log("setCategories=>", categories)
+    console.log("total=>", total)
+    console.log("chosenCategory=>", chosenCategory)
+
+    async function getCategories() {
+        let categories: any = await axios("https://dummyjson.com/products/categories")
+        setCategories(categories.data);
+    }
+
+    async function getProducts() {
+        let url = chosenCategory && chosenCategory != "all"
+            ? `https://dummyjson.com/products/category/${chosenCategory}`
+            : "https://dummyjson.com/products"
+        let products: any = await axios(`${url}?limit=${limit}&skip${skip}`)
+        setProducts(products.data.products);
+        console.log('first', products.data.total)
+        setTotal(products.data.total)
+    }
+
+    // const { products, status } = useSelector((state: RootState) => state.products);
     const theme = useSelector((state: RootState) => state.theme.theme);
     const dispatch = useDispatch();
 
-    useEffect(() => {
-        dispatch(fetchProducts());
-        console.log(products);
-    }, [dispatch]);
+    // useEffect(() => {
+    //     dispatch(fetchProducts());
+    //     console.log(products);
+    // }, [dispatch]);
 
     return (
         <View style={[styles.container, { backgroundColor: theme === "light" ? "#fff" : "#000" }]}>
@@ -31,6 +68,29 @@ function flatlist() {
             >
                 Learning Flatlist
             </ThemedText>
+
+            <View style={{ margin: 10, }}>
+                <FlatList
+                    data={[{ slug: "all", name: "All" }, ...categories]}
+                    keyExtractor={(data) => data.slug}
+                    horizontal={true}
+                    contentContainerStyle={{ gap: 5 }}
+                    showsHorizontalScrollIndicator={false}
+                    renderItem={({ item }: { item: Category }) => {
+                        let isChosen = item.slug == chosenCategory
+                        return (
+                            <ThemeButton
+                                activeOpacity={0.9}
+                                onPress={() => setChosenCategory(item.slug)}
+                                style={styles.chip}
+                                bgColor={isChosen ? "#000" : "#fff"}
+                                txtColor={isChosen ? "#fff" : "#000"}
+                                txt={item.name}
+                            />
+                        )
+                    }}
+                />
+            </View>
 
             <FlatList
                 data={products}
@@ -54,13 +114,13 @@ function flatlist() {
                                 <FlatList
                                     data={item.tags}
                                     keyExtractor={(tag, tagIndex) => `${item.id}-${tagIndex}`}
-                                    horizontal
+                                    showsVerticalScrollIndicator={false}
                                     renderItem={({ item: tag }) => (
-                                        <Text style={[styles.cardTags, 
-                                            { 
-                                                backgroundColor: theme === "light" ? "#aaa" : "#ddd",
-                                                color: theme === "light" ? "#fff" : "#000"
-                                             }]}>{tag}{" "}</Text>
+                                        <Text style={[styles.cardTags,
+                                        {
+                                            backgroundColor: theme === "light" ? "#aaa" : "#ddd",
+                                            color: theme === "light" ? "#fff" : "#000"
+                                        }]}>{tag}{" "}</Text>
                                     )}
                                 />
                             </View>
@@ -95,6 +155,11 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingVertical: 10,
     },
+    chip: {
+        borderColor: "gray",
+        borderWidth: 1,
+        paddingVertical: 5
+    },
     item: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -114,6 +179,7 @@ const styles = StyleSheet.create({
     image: {
         height: 100,
         width: 100,
+        resizeMode: 'contain',
         borderRadius: 10,
         marginRight: 10,
         elevation: 1,
